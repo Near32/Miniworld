@@ -26,6 +26,9 @@ parser.add_argument(
     "--no-time-limit", action="store_true", help="ignore time step limits"
 )
 parser.add_argument(
+    "--entity_visibility_oracle", action="store_true", help="enable entity visibility oracle"
+)
+parser.add_argument(
     "--top_view",
     action="store_true",
     help="show the top view instead of the agent view",
@@ -33,12 +36,20 @@ parser.add_argument(
 args = parser.parse_args()
 view_mode = "top" if args.top_view else "agent"
 
-env = gym.make(args.env_name, view=view_mode, render_mode="human")
+env = gym.make(
+    args.env_name, 
+    view=view_mode, 
+    render_mode="human",
+    num_objs=1,
+)
 
 if args.no_time_limit:
     env.max_episode_steps = math.inf
 if args.domain_rand:
     env.domain_rand = True
+if args.entity_visibility_oracle:
+    from miniworld.wrappers import EntityVisibilityOracleWrapper
+    env = EntityVisibilityOracleWrapper(env)
 
 print("============")
 print("Instructions")
@@ -67,6 +78,11 @@ def step(action):
     if termination or truncation:
         print("done!")
         env.reset()
+    
+    if "visible_entities" in info:
+        print("Visible entities: ")
+        for ent in info["visible_entities"]:
+            print(ent)
 
     env.render()
 
