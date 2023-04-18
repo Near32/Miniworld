@@ -40,7 +40,6 @@ env = gym.make(
     args.env_name, 
     view=view_mode, 
     render_mode="human",
-    num_objs=1,
 )
 
 if args.no_time_limit:
@@ -49,7 +48,7 @@ if args.domain_rand:
     env.domain_rand = True
 if args.entity_visibility_oracle:
     from miniworld.wrappers import EntityVisibilityOracleWrapper
-    env = EntityVisibilityOracleWrapper(env)
+    env = EntityVisibilityOracleWrapper(env, verbose=False)
 
 print("============")
 print("Instructions")
