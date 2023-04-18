@@ -48,7 +48,7 @@ if args.domain_rand:
     env.domain_rand = True
 if args.entity_visibility_oracle:
     from miniworld.wrappers import EntityVisibilityOracleWrapper
-    env = EntityVisibilityOracleWrapper(env, verbose=False)
+    env = EntityVisibilityOracleWrapper(env, verbose=True)
 
 print("============")
 print("Instructions")

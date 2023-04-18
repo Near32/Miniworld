@@ -61,14 +61,22 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         the entity that must be visible for the entity to qualify in 
         the returned list. E.g. 0.1 means that all entities that are 
         at least 10% visible on the screen will qualify.
+        - :param qualifying_screen_ratio: float in the range ]0.0;1.0]
+        that specifies the minimal percentage of screen-space that the
+        visible area of the entity that must occupy for the entity to 
+        qualify in the returned list. E.g. 0.01 means that all entities 
+        that are at least occupying an area of 1% of the whole screen 
+        will qualify.
     """
 
-    def __init__(self, env, relevant_entity_types=['Box','Key','Ball'], qualifying_area_ratio=0.15, verbose=False):
+    def __init__(self, env, relevant_entity_types=['Box','Key','Ball'], qualifying_area_ratio=0.15, qualifying_screen_ratio=0.025, verbose=False):
         assert isinstance(relevant_entity_types, list) and len(relevant_entity_types)
         assert isinstance(qualifying_area_ratio, float) and 0 < qualifying_area_ratio <= 1.0
+        assert isinstance(qualifying_screen_ratio, float) and 0 < qualifying_screen_ratio <= 1.0
         super().__init__(env)
         self.relevant_entity_types = relevant_entity_types
         self.qualifying_area_ratio = qualifying_area_ratio
+        self.qualifying_screen_ratio = qualifying_screen_ratio
         self.verbose = verbose
 
     def _filter_entities(self, entities):
@@ -151,7 +159,15 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
             vertices_homogeneous = np.concatenate([vertices, np.ones((vertices.shape[0], 1))], axis=1)
             vertices_ndc = (projection_matrix @ view_matrix @ model_matrix @ vertices_homogeneous.T).T
             
-            in_front = (vertices_ndc[:,3].mean() > 0.0)
+            mean_depth = vertices_ndc[:,2].mean()
+            in_front = (mean_depth > 0.0)
+            # Remove vertices that are not in front of the camera:
+            in_front_indices = [idx for idx, vertex in enumerate(vertices_ndc) if vertex[2] > 0.0]
+            not_in_front_indices = [idx for idx, vertex in enumerate(vertices_ndc) if vertex[2] < 0.0]
+            if len(in_front_indices)==0:    continue
+            #vertices_ndc = vertices_ndc[in_front_indices]
+            vertices_ndc[not_in_front_indices, 2] = 0.0
+
             vertices_ndc /= vertices_ndc[:, 3].reshape(-1, 1)
             
             # Transform NDC vertices to screen space
@@ -169,34 +185,91 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
             screen_ent_width = np.abs(max_x - min_x)
             screen_ent_height = np.abs(max_y - min_y)
             screen_ent_area = screen_ent_width * screen_ent_height
-
+            
             # Compute area of the bounding box that is inside the screen
-            visible_ent_width = max(0,min(max_x, screen_width)) - max(0,min(min_x, screen_width))
-            visible_ent_height = max(0,min(max_y, screen_height)) - max(0,min(min_y, screen_height))
+            v_max_x = max(0,min(max_x, screen_width))
+            v_min_x = max(0,min(min_x, screen_width))
+            visible_ent_width = v_max_x - v_min_x
+            v_max_y = max(0,min(max_y, screen_height))
+            v_min_y = max(0,min(min_y, screen_height))
+            visible_ent_height = v_max_y - v_min_y
             visible_ent_area = visible_ent_width * visible_ent_height
 
             # Compute the ratio of visible area to total area
             visible_percentage = visible_ent_area / screen_ent_area * 100
+            screen_ratio = visible_ent_area / (screen_width*screen_height) * 100.0
+
             
             if self.verbose:
                 print(f"Entity {filtered_entities[midx]} is {'in front' if in_front else 'not'} visible : {visible_percentage} %.")
-                print(f"X : {min_x} to {max_x} / Y : {min_y} to {max_y}") 
+                print(f"X : {min_x} to {max_x} / Y : {min_y} to {max_y}")
+                print(f"Area : {screen_ent_area} px-sq : {screen_ratio}% of the screen") 
+            
+            wide_enough = (screen_ent_width > 0.05*screen_width)
+            # Tricky situation when vertices are not all in front:
+            on_side = (screen_ent_width > 2.5*screen_width)
+            if on_side:
+                print(f"Entity {filtered_entities[midx]} is on the side!")
+                continue
+            if not wide_enough: 
+                print(f"Entity {filtered_entities[midx]} is not wide enough!")
+                print(f"{screen_ent_width} < {0.05*screen_width} ...")
+                continue
 
-            if in_front and visible_percentage >= (self.qualifying_area_ratio*100.0):
+            
+            if (visible_percentage >= (self.qualifying_area_ratio*100.0)) \
+            or (screen_ratio >= (self.qualifying_screen_ratio*100.0)):
                 # Object is sufficiently visible, then add it to visible objects list
                 visible_objects.append(
                     {
                         'entity':filtered_entities[midx], 
+                        'min_x':min_x,
                         'max_x':max_x,
+                        'min_y':min_y,
+                        'max_y':max_y,
+                        'screen_ratio': screen_ratio,
+                        'screen_area': screen_ent_area,
+                        'depth':mean_depth,
+                        'area':set([
+                            (x,y) 
+                            for x in range(v_min_x, v_max_x)
+                            for y in range(v_min_y, v_max_y)
+                        ]),
                     },
                 )
+        
+        # Account for occlusions:
+        non_occl_visible_objects = []
+        for vidx, vent in enumerate(visible_objects):
+            init_visible_area = len(vent['area'])
+            for oidx, oent in enumerate(visible_objects):
+                if oidx == vidx:    continue
+                if oent['depth'] > vent['depth']:   continue
 
+                vent['area'] = vent['area'] - oent['area']
+            
+            non_occl_visible_area = len(vent['area'])
+            non_occl_visible_percentage = non_occl_visible_area / vent['screen_area'] * 100.0
+
+            if non_occl_visible_percentage >= (self.qualifying_area_ratio*100.0):
+                # The object is sufficiently visible, despite occlusions.
+                non_occl_visible_objects.append(vent)
+            elif init_visible_area == non_occl_visible_area \
+            and vent['screen_ratio'] >= (self.qualifying_screen_ratio*100.0):
+                # The object is very close from the agent, and no other object occludes it.
+                non_occl_visible_objects.append(vent)
+
+            if self.verbose:
+                print(f"Entity {vent['entity']} is visible : {non_occl_visible_percentage} %.")
+                print(f"X : {vent['min_x']} to {vent['max_x']} / Y : {vent['min_y']} to {vent['max_y']}")
+                print(f"Area : {vent['screen_area']} px-sq : {vent['screen_ratio']}% of the screen") 
+             
         # Sort visible objects from left to right based on their screen-space 
         # bounding box's right-most point:
-        visible_objects.sort(key=lambda obj: obj['max_x'] * screen_width)
+        non_occl_visible_objects.sort(key=lambda obj: obj['max_x'] * screen_width)
         
         # Filtering for entities only :
-        visible_objects = [obj['entity'] for obj in visible_objects]
+        visible_objects = [obj['entity'] for obj in non_occl_visible_objects]
 
         return visible_objects
     
