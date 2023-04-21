@@ -79,9 +79,9 @@ def step(action):
         env.reset()
     
     if "visible_entities" in info:
-        print("Visible entities: ")
-        for ent in info["visible_entities"]:
-            print(ent)
+        print(f"Visible entities: {info['visible_entities']}")
+        #for ent in info["visible_entities"]:
+        #    print(ent)
 
     env.render()
 

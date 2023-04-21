@@ -209,11 +209,13 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
             # Tricky situation when vertices are not all in front:
             on_side = (screen_ent_width > 2.5*screen_width)
             if on_side:
-                print(f"Entity {filtered_entities[midx]} is on the side!")
+                if self.verbose:    
+                    print(f"Entity {filtered_entities[midx]} is on the side!")
                 continue
             if not wide_enough: 
-                print(f"Entity {filtered_entities[midx]} is not wide enough!")
-                print(f"{screen_ent_width} < {0.05*screen_width} ...")
+                if self.verbose:
+                    print(f"Entity {filtered_entities[midx]} is not wide enough!")
+                    print(f"{screen_ent_width} < {0.05*screen_width} ...")
                 continue
 
             
@@ -270,6 +272,8 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         
         # Filtering for entities only :
         visible_objects = [obj['entity'] for obj in non_occl_visible_objects]
+        visible_objects = [f"{getattr(ent, 'color', '')} {type(ent).__name__.lower()}" for ent in visible_objects]
+        visible_objects = ', '.join(visible_objects)
 
         return visible_objects
     
