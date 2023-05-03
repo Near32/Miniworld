@@ -1,5 +1,6 @@
 import gymnasium as gym
 import numpy as np
+import copy
 
 import pyglet
 from pyglet.gl import *
@@ -69,7 +70,7 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         will qualify.
     """
 
-    def __init__(self, env, relevant_entity_types=['Box','Key','Ball'], qualifying_area_ratio=0.15, qualifying_screen_ratio=0.025, verbose=False):
+    def __init__(self, env, relevant_entity_types=['Box','Key','Ball'], qualifying_area_ratio=0.15, qualifying_screen_ratio=0.025, as_obs=False, verbose=False):
         assert isinstance(relevant_entity_types, list) and len(relevant_entity_types)
         assert isinstance(qualifying_area_ratio, float) and 0 < qualifying_area_ratio <= 1.0
         assert isinstance(qualifying_screen_ratio, float) and 0 < qualifying_screen_ratio <= 1.0
@@ -77,7 +78,25 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         self.relevant_entity_types = relevant_entity_types
         self.qualifying_area_ratio = qualifying_area_ratio
         self.qualifying_screen_ratio = qualifying_screen_ratio
+        self.as_obs = as_obs
         self.verbose = verbose
+        
+        n_objects = getattr(env, 'n_object', None)
+        if n_objects is None:
+            n_objects = getattr(env, 'num_objs', None)
+        if n_objects is None:   
+            n_objects = 5
+        self.max_sentence_length = n_objects * 3
+
+        if self.as_obs:
+            self.observation_space = copy.deepcopy(env.observation_space)
+            if not isinstance(self.observation_space, gym.spaces.Dict):
+                obs_space = gym.spaces.Dict({
+                    "image": self.observation_space,
+                })
+                self.observation_space = obs_space
+
+            self.observation_space.spaces["visible_entities"] = gym.spaces.MultiDiscrete([100]*self.max_sentence_length)
 
     def _filter_entities(self, entities):
         fentities = []
@@ -273,20 +292,35 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         # Filtering for entities only :
         visible_objects = [obj['entity'] for obj in non_occl_visible_objects]
         visible_objects = [f"{getattr(ent, 'color', '')} {type(ent).__name__.lower()}" for ent in visible_objects]
-        visible_objects = ', '.join(visible_objects)
+        
+        #visible_objects = ', '.join(visible_objects)
+        visible_objects = ' '.join(visible_objects)
+
+        if visible_objects == '':
+            visible_objects = 'EoS'
+        else:
+            visible_objects += ' EoS'
 
         return visible_objects
     
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
         
-        info['visible_entities'] = self.get_visible_entities()
+        visible_entities = self.get_visible_entities() 
+        if self.as_obs:
+            obs['visible_entities'] = visible_entities
+        else:
+            info['visible_entities'] = visible_entities 
 
         return obs, info
 
     def step(self, action, **kwargs):
         next_obs, reward, termination, truncation, info = self.env.step(action, **kwargs)
-
-        info['visible_entities'] = self.get_visible_entities()
+        
+        visible_entities = self.get_visible_entities() 
+        if self.as_obs:
+            next_obs['visible_entities'] = visible_entities
+        else:
+            info['visible_entities'] = visible_entities 
 
         return next_obs, reward, termination, truncation, info
