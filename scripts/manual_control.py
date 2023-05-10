@@ -48,7 +48,7 @@ if args.domain_rand:
     env.domain_rand = True
 if args.entity_visibility_oracle:
     from miniworld.wrappers import EntityVisibilityOracleWrapper
-    env = EntityVisibilityOracleWrapper(env, verbose=True)
+    env = EntityVisibilityOracleWrapper(env, verbose=True, with_top_view=True)
 
 print("============")
 print("Instructions")
@@ -80,15 +80,17 @@ def step(action):
     
     if "visible_entities" in info:
         print(f"Visible entities: {info['visible_entities']}")
-        #for ent in info["visible_entities"]:
-        #    print(ent)
-
+    
     env.render()
 
     if isinstance(obs, dict):
         if "mission" in obs:
             print(f"Mission: {obs['mission']}")
+        if "agent_pos_in_top_view" in obs:
+            print(f"The agent is at: {obs['agent_pos_in_top_view']}")
 
+
+    
 
 @env.unwrapped.window.event
 def on_key_press(symbol, modifiers):

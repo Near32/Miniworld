@@ -1,6 +1,7 @@
 import gymnasium as gym
 import numpy as np
 import copy
+import math 
 
 import pyglet
 from pyglet.gl import *
@@ -70,7 +71,16 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         will qualify.
     """
 
-    def __init__(self, env, relevant_entity_types=['Box','Key','Ball'], qualifying_area_ratio=0.15, qualifying_screen_ratio=0.025, as_obs=False, verbose=False):
+    def __init__(
+        self, 
+        env, 
+        relevant_entity_types=['Box','Key','Ball'], 
+        qualifying_area_ratio=0.15, 
+        qualifying_screen_ratio=0.025, 
+        as_obs=False, 
+        with_top_view=False,
+        verbose=False,
+    ):
         assert isinstance(relevant_entity_types, list) and len(relevant_entity_types)
         assert isinstance(qualifying_area_ratio, float) and 0 < qualifying_area_ratio <= 1.0
         assert isinstance(qualifying_screen_ratio, float) and 0 < qualifying_screen_ratio <= 1.0
@@ -79,6 +89,7 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         self.qualifying_area_ratio = qualifying_area_ratio
         self.qualifying_screen_ratio = qualifying_screen_ratio
         self.as_obs = as_obs
+        self.with_top_view = with_top_view
         self.verbose = verbose
         
         n_objects = getattr(env, 'n_object', None)
@@ -88,8 +99,8 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
             n_objects = 5
         self.max_sentence_length = n_objects * 3
 
+        self.observation_space = copy.deepcopy(env.observation_space)
         if self.as_obs:
-            self.observation_space = copy.deepcopy(env.observation_space)
             if not isinstance(self.observation_space, gym.spaces.Dict):
                 obs_space = gym.spaces.Dict({
                     "image": self.observation_space,
@@ -97,6 +108,20 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
                 self.observation_space = obs_space
 
             self.observation_space.spaces["visible_entities"] = gym.spaces.MultiDiscrete([100]*self.max_sentence_length)
+        
+        if self.with_top_view:
+            if not isinstance(self.observation_space, gym.spaces.Dict):
+                obs_space = gym.spaces.Dict({
+                    "image": self.observation_space,
+                })
+                self.observation_space = obs_space
+            self.observation_space.spaces["top_view"] = copy.deepcopy(self.observation_space.spaces["image"])
+            self.observation_space.spaces["agent_pos_in_top_view"] = gym.spaces.Box(
+                low=-math.inf, 
+                high=-math.inf, 
+                shape=(3, 4), 
+                dtype=np.float32,
+            )
 
     def _filter_entities(self, entities):
         fentities = []
@@ -303,6 +328,171 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
 
         return visible_objects
     
+    def get_agent_pos_in_top_view(self):
+        frame_buffer, \
+        min_x, max_x, min_z, max_z = self.setup_top_view()
+
+        # Set the projection matrix
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        glOrtho(min_x, max_x, -max_z, -min_z, -100, 100.0)
+
+        # Setup the camera
+        # Y maps to +Z, Z maps to +Y
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        m = [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+        ]
+        glLoadMatrixf((GLfloat * len(m))(*m))
+
+        # Retrieve projection matrix, view matrix, and viewport dimensions from OpenGL
+        projection_matrix = (ctypes.c_float *16)()
+        view_matrix = (ctypes.c_float * 16)()
+        viewport = (ctypes.c_int * 4)()
+        
+        glGetIntegerv(GL_VIEWPORT, viewport)
+        viewport = np.array(viewport, dtype=np.int32)
+        screen_width = viewport[2]
+        screen_height = viewport[3]
+        
+        glGetFloatv(GL_PROJECTION_MATRIX, projection_matrix)
+        glGetFloatv(GL_MODELVIEW_MATRIX, view_matrix)
+        projection_matrix = np.array(projection_matrix, dtype=np.float32).reshape((4,4)).T
+        view_matrix = np.array(view_matrix, dtype=np.float32).reshape((4,4)).T
+        
+        Y_VEC = np.array([0, 1, 0])
+        p = self.unwrapped.agent.pos + Y_VEC * self.unwrapped.agent.height
+        dv = self.unwrapped.agent.dir_vec * self.unwrapped.agent.radius
+        rv = self.unwrapped.agent.right_vec * self.unwrapped.agent.radius
+        
+        p0 = p #+ dv
+        p1 = p + 2.5*(dv + rv) #+ 0.75 * (rv - dv)
+        p2 = p + 2.5*(dv - rv) #+ 0.75 * (-rv - dv) 
+        
+        agent_pos = np.stack([
+            p0,
+            p1,
+            p2],
+            axis=0,
+        )
+        
+        vertices = agent_pos
+        # Create Model Matrix of the mesh:
+        model_matrix = np.identity(4)
+        
+        # Transform mesh vertices to NDC space
+        vertices_homogeneous = np.concatenate([vertices, np.ones((vertices.shape[0], 1))], axis=1)
+        vertices_ndc = (projection_matrix @ view_matrix @ model_matrix @ vertices_homogeneous.T).T
+        vertices_ndc /= vertices_ndc[:, 3].reshape(-1, 1)
+        
+        # Transform NDC vertices to screen space
+        # Taking into account OpenGL inverted Y-axis... (going upward while screen Y axises are usually meant to go downward) :
+        vertices_screen = np.array([
+            (vertices_ndc[:,0]+1)*0.5*screen_width,
+            (1-(vertices_ndc[:,1]+1)*0.5)*screen_height,
+        ]).T
+        
+        agent_pos_in_top_view = vertices_screen
+        return agent_pos_in_top_view
+    
+    def setup_top_view(self):
+        # Switch to the default OpenGL context
+        # This is necessary on Linux Nvidia drivers
+        self.shadow_window.switch_to()
+        # Bind the frame buffer before rendering into it
+        frame_buffer = self.unwrapped.obs_fb
+        frame_buffer.bind()
+
+        # Clear the color and depth buffers
+        glClearColor(*self.unwrapped.sky_color, 1.0)
+        glClearDepth(1.0)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        # Scene extents to render
+        min_x = self.unwrapped.min_x - 1
+        max_x = self.unwrapped.max_x + 1
+        min_z = self.unwrapped.min_z - 1
+        max_z = self.unwrapped.max_z + 1
+
+        width = max_x - min_x
+        height = max_z - min_z
+        aspect = width / height
+        fb_aspect = frame_buffer.width / frame_buffer.height
+
+        # Adjust the aspect extents to match the frame buffer aspect
+        if aspect > fb_aspect:
+            # Want to add to denom, add to height
+            new_h = width / fb_aspect
+            h_diff = new_h - height
+            min_z -= h_diff / 2
+            max_z += h_diff / 2
+        elif aspect < fb_aspect:
+            # Want to add to num, add to width
+            new_w = height * fb_aspect
+            w_diff = new_w - width
+            min_x -= w_diff / 2
+            max_x += w_diff / 2
+
+        return frame_buffer, min_x, max_x, min_z, max_z
+    
+    def get_top_view(self):
+        """
+        Render a top view of the whole map (from above),
+        without the agent visible.
+        """
+        
+        frame_buffer, \
+        min_x, max_x, min_z, max_z = self.setup_top_view()
+
+        # Set the projection matrix
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        glOrtho(min_x, max_x, -max_z, -min_z, -100, 100.0)
+
+        # Setup the camera
+        # Y maps to +Z, Z maps to +Y
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        m = [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+        ]
+        glLoadMatrixf((GLfloat * len(m))(*m))
+
+        top_view_image = self.unwrapped._render_world(frame_buffer, render_agent=False)
+        
+        return top_view_image
+
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
         
@@ -311,7 +501,13 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
             obs['visible_entities'] = visible_entities
         else:
             info['visible_entities'] = visible_entities 
-
+        
+        if self.with_top_view:
+            self.top_view = self.get_top_view()
+            obs['top_view'] = copy.deepcopy(self.top_view)
+            self.agent_pos_in_top_view = self.get_agent_pos_in_top_view()
+            obs['agent_pos_in_top_view'] = copy.deepcopy(self.agent_pos_in_top_view)
+        
         return obs, info
 
     def step(self, action, **kwargs):
@@ -322,5 +518,11 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
             next_obs['visible_entities'] = visible_entities
         else:
             info['visible_entities'] = visible_entities 
+
+        if self.with_top_view:
+            self.top_view = self.get_top_view()
+            next_obs['top_view'] = copy.deepcopy(self.top_view)
+            self.agent_pos_in_top_view = self.get_agent_pos_in_top_view()
+            next_obs['agent_pos_in_top_view'] = copy.deepcopy(self.agent_pos_in_top_view)
 
         return next_obs, reward, termination, truncation, info
