@@ -416,7 +416,7 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         # This is necessary on Linux Nvidia drivers
         self.shadow_window.switch_to()
         # Bind the frame buffer before rendering into it
-        frame_buffer = self.unwrapped.obs_fb
+        frame_buffer = self.unwrapped.vis_fb #obs_fb
         frame_buffer.bind()
 
         # Clear the color and depth buffers
@@ -504,9 +504,9 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         
         if self.with_top_view:
             self.top_view = self.get_top_view()
-            obs['top_view'] = copy.deepcopy(self.top_view)
+            obs['top_view'] = [copy.deepcopy(self.top_view)]
             self.agent_pos_in_top_view = self.get_agent_pos_in_top_view()
-            obs['agent_pos_in_top_view'] = copy.deepcopy(self.agent_pos_in_top_view)
+            obs['agent_pos_in_top_view'] = [copy.deepcopy(self.agent_pos_in_top_view)]
         
         return obs, info
 
@@ -521,8 +521,8 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
 
         if self.with_top_view:
             self.top_view = self.get_top_view()
-            next_obs['top_view'] = copy.deepcopy(self.top_view)
+            next_obs['top_view'] = [copy.deepcopy(self.top_view)]
             self.agent_pos_in_top_view = self.get_agent_pos_in_top_view()
-            next_obs['agent_pos_in_top_view'] = copy.deepcopy(self.agent_pos_in_top_view)
+            next_obs['agent_pos_in_top_view'] = [copy.deepcopy(self.agent_pos_in_top_view)]
 
         return next_obs, reward, termination, truncation, info
