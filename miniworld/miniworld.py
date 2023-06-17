@@ -537,6 +537,13 @@ class MiniWorldEnv(gym.Env):
             x=window_width + 5,
             y=window_height - (self.obs_disp_height + 19),
         )
+        
+        self.collision_entity_types = [
+            'ball',
+            'box',
+            'key',
+            'meshent',
+        ]
 
         # Initialize the state
         self.reset()
@@ -695,7 +702,7 @@ class MiniWorldEnv(gym.Env):
         elif action == self.actions.pickup:
             # Position at which we will test for an intersection
             test_pos = self.agent.pos + self.agent.dir_vec * 1.5 * self.agent.radius
-            ent = self.intersect(self.agent, test_pos, 1.2 * self.agent.radius)
+            ent = self.intersect(self.agent, test_pos, 1.2 * self.agent.radius, pickup_test=True)
             if not self.agent.carrying:
                 if isinstance(ent, Entity):
                     if not ent.is_static:
@@ -926,7 +933,7 @@ class MiniWorldEnv(gym.Env):
             max_z=max_z,
         )
 
-    def intersect(self, ent, pos, radius):
+    def intersect(self, ent, pos, radius, pickup_test=False):
         """
         Check if an entity intersects with the world
         """
@@ -943,6 +950,9 @@ class MiniWorldEnv(gym.Env):
         for ent2 in self.entities:
             # Entities can't intersect with themselves
             if ent2 is ent:
+                continue
+            if not pickup_test \
+            and type(ent2).__name__.lower() not in self.collision_entity_types:
                 continue
 
             px, _, pz = ent2.pos
