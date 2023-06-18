@@ -48,6 +48,14 @@ class GreyscaleWrapper(gym.ObservationWrapper):
         return np.expand_dims(obs, axis=2)
 
 
+from miniworld.miniworld import DEFAULT_WALL_HEIGHT
+
+class WallEntity(object):
+    def __init__(self, wall_seg):
+        self.s_p0 = wall_seg[0]
+        self.s_p1 = wall_seg[1]
+
+
 class EntityVisibilityOracleWrapper(gym.Wrapper):
     """
     Adds to the info dictionnary an entry `'visible_entities'`,
@@ -166,13 +174,69 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
 
         return {'vertices':vertices, 'center':center}
  
-    def get_visible_entities(self):
+    def _Wall2BoundingBoxMesh(self, wall):
+        """
+        Create PyOpenGL-like mesh's vertices object for a wall. 
+        """
+        s_p0 = wall.s_p0
+        s_p1 = wall.s_p1
+        min_y = 0
+        global DEFAULT_WALL_HEIGHT
+        max_y = DEFAULT_WALL_HEIGHT
+        Y_VEC = np.array([0,1,0])
+        
+        wall_verts = []
+        wall_verts.append(s_p0 + min_y * Y_VEC)
+        wall_verts.append(s_p0 + max_y * Y_VEC)
+        wall_verts.append(s_p1 + max_y * Y_VEC)
+        wall_verts.append(s_p1 + min_y * Y_VEC) 
+        
+        # Calculate the positions of the box vertices based on entity.pos
+        vertices = np.array(wall_verts, dtype=np.float32).reshape((4,3))
+        center = s_p0+(s_p1-s_p0)/2+(max_y/2)*Y_VEC
+
+        return {'vertices':vertices, 'center':center}
+ 
+    def get_depth_buffer(self, width, height):
+        self.shadow_window.switch_to()
+        #self.shadow_window.context.set_current()
+        self.unwrapped.obs_fb.bind()
+        
+        depth_map = self.unwrapped.obs_fb.get_depth_map(0.04, 100.0)
+        
+        '''
+        # Read the depth buffer into a numpy array
+        depth_buffer = (ctypes.c_float * (width*height))()
+        #depth_buffer = np.zeros((height, width), dtype=np.float32)
+        glReadPixels(0, 0, width, height, GL_DEPTH_COMPONENT, GL_FLOAT, depth_buffer)
+        depth_buffer = np.frombuffer(depth_buffer, dtype=np.float32).reshape((height, width))
+        
+        # Convert the depth buffer from [0, 1] to world coordinates
+        near = glGetFloatv(GL_DEPTH_RANGE)[0]
+        far = glGetFloatv(GL_DEPTH_RANGE)[1]
+        depth_buffer = (2.0 * depth_buffer - 1.0) * far / (far - near)
+        '''
+
+        return depth_buffer
+
+    def depr_get_visible_entities(self):
         self.shadow_window.switch_to()
         self.unwrapped.obs_fb.bind()
         
-        entities = self.unwrapped.entities
+        #entities = self.unwrapped.entities
+        # Entities that ought to be considered, because 
+        # not occluded by walls...
+        # but still possibly occluded by each other...
+        entities = self.get_visible_ents()
         filtered_entities = self._filter_entities(entities)
         meshes = [self._Entity2BoundingBoxMesh(fent) for fent in filtered_entities]
+        '''
+        # Add walls:
+        wall_segs = self.unwrapped.wall_segs
+        walls = [WallEntity(wall_seg) for wall_seg in wall_segs]
+        filtered_entities += walls
+        meshes += [self._Wall2BoundingBoxMesh(wall) for wall in walls]
+        '''
 
         visible_objects = []
         
@@ -191,6 +255,13 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         projection_matrix = np.array(projection_matrix, dtype=np.float32).reshape((4,4)).T
         view_matrix = np.array(view_matrix, dtype=np.float32).reshape((4,4)).T
         
+        '''
+        depth_buffer = self.get_depth_buffer(
+            width=screen_width,
+            height=screen_height,
+        )
+        '''
+
         # Loop through each mesh in the list
         for midx, mesh in enumerate(meshes):
             vertices = mesh['vertices']
@@ -266,6 +337,13 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
             if (visible_percentage >= (self.qualifying_area_ratio*100.0)) \
             or (screen_ratio >= (self.qualifying_screen_ratio*100.0)):
                 # Object is sufficiently visible, then add it to visible objects list
+                '''
+                area_aligned_depths = {
+                    (x,y):depth_buffer[x,y]
+                    for x in range(v_min_x, v_max_x)
+                    for y in range(v_min_y, v_max_y)
+                }
+                '''
                 visible_objects.append(
                     {
                         'entity':filtered_entities[midx], 
@@ -280,6 +358,7 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
                             (x,y) 
                             for x in range(v_min_x, v_max_x)
                             for y in range(v_min_y, v_max_y)
+                            #if min_depth <= depth_buffer[x,y] <= max_depth
                         ]),
                     },
                 )
@@ -287,13 +366,25 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         # Account for occlusions:
         non_occl_visible_objects = []
         for vidx, vent in enumerate(visible_objects):
+            # No need to compute it for walls, we filter them out.
+            #if isinstance(vent['entity'], WallEntity):  continue
             init_visible_area = len(vent['area'])
             for oidx, oent in enumerate(visible_objects):
                 if oidx == vidx:    continue
+                '''
+                if isinstance(oent['entity'], WallEntity):
+                    #Check whether there is screen horizontal overlap:
+                    on_left = vent['max_x'] < oent['min_x']
+                    on_right = vent['min_x'] > oent['max_x']
+                    if on_left or on_right: continue
+                    # From here on, we know there is overlap.
+                    # We need to identify how much:
+                    for (x,y) in vent['area']:
+                        pass
+                else:
+                '''
                 if oent['depth'] > vent['depth']:   continue
-
                 vent['area'] = vent['area'] - oent['area']
-            
             non_occl_visible_area = len(vent['area'])
             non_occl_visible_percentage = non_occl_visible_area / vent['screen_area'] * 100.0
 
@@ -316,6 +407,21 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         
         # Filtering for entities only :
         visible_objects = [obj['entity'] for obj in non_occl_visible_objects]
+        visible_objects = [f"{getattr(ent, 'color', '')} {type(ent).__name__.lower()}" for ent in visible_objects]
+        
+        #visible_objects = ', '.join(visible_objects)
+        visible_objects = ' '.join(visible_objects)
+
+        if visible_objects == '':
+            visible_objects = 'EoS'
+        else:
+            visible_objects += ' EoS'
+
+        return visible_objects
+    
+    def get_visible_entities(self):
+        # Filtering for entities only :
+        visible_objects = self.get_visible_ents()
         visible_objects = [f"{getattr(ent, 'color', '')} {type(ent).__name__.lower()}" for ent in visible_objects]
         
         #visible_objects = ', '.join(visible_objects)

@@ -295,9 +295,9 @@ class MazeConditionalPickUpObjectFast(ConditionalPickUpObjectFast):
         self, 
         num_rows=4,
         num_cols=4,
-        room_size=6, 
+        room_size=4, 
         num_objs=10, 
-        cam_pitch=-30, 
+        cam_pitch=-25, 
         **kwargs,
     ):
         ConditionalPickUpObjectFast.__init__(
