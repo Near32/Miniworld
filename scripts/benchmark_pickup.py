@@ -9,7 +9,11 @@ import miniworld
 st = time.time()
 env = gym.make("MiniWorld-MazeConditionalPickUpObjectFast-v0")
 from miniworld.wrappers import EntityVisibilityOracleWrapper
-env = EntityVisibilityOracleWrapper(env, verbose=True, with_top_view=True)
+env = EntityVisibilityOracleWrapper(
+    env, 
+    verbose=True, 
+    #with_top_view=True,
+)
 
 #env.seed(0)
 env.reset(seed=0)

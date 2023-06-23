@@ -398,31 +398,32 @@ class Room:
         else:
             self.wall_texcs = np.array([]).reshape(0, 2)
 
-    def _render(self):
+    def _render(self, bare=False):
         """
         Render the static elements of the room
         """
 
         glColor3f(1, 1, 1)
 
-        # Draw the floor
-        self.floor_tex.bind()
-        glBegin(GL_POLYGON)
-        glNormal3f(0, 1, 0)
-        for i in range(self.floor_verts.shape[0]):
-            glTexCoord2f(*self.floor_texcs[i, :])
-            glVertex3f(*self.floor_verts[i, :])
-        glEnd()
-
-        # Draw the ceiling
-        if not self.no_ceiling:
-            self.ceil_tex.bind()
+        if not bare:
+            # Draw the floor
+            self.floor_tex.bind()
             glBegin(GL_POLYGON)
-            glNormal3f(0, -1, 0)
-            for i in range(self.ceil_verts.shape[0]):
-                glTexCoord2f(*self.ceil_texcs[i, :])
-                glVertex3f(*self.ceil_verts[i, :])
+            glNormal3f(0, 1, 0)
+            for i in range(self.floor_verts.shape[0]):
+                glTexCoord2f(*self.floor_texcs[i, :])
+                glVertex3f(*self.floor_verts[i, :])
             glEnd()
+
+            # Draw the ceiling
+            if not self.no_ceiling:
+                self.ceil_tex.bind()
+                glBegin(GL_POLYGON)
+                glNormal3f(0, -1, 0)
+                for i in range(self.ceil_verts.shape[0]):
+                    glTexCoord2f(*self.ceil_texcs[i, :])
+                    glVertex3f(*self.ceil_verts[i, :])
+                glEnd()
 
         # Draw the walls
         self.wall_tex.bind()
@@ -1278,7 +1279,7 @@ class MiniWorldEnv(gym.Env):
         # Render the rooms, without texturing
         glDisable(GL_TEXTURE_2D)
         for room in self.rooms:
-            room._render()
+            room._render(bare=True)
 
         # For each entity
         for ent_idx, ent in enumerate(self.entities):

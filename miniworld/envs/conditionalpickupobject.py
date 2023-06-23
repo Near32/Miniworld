@@ -123,6 +123,7 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
                     min_z=min_z,
                     max_z=max_z,
                     wall_tex="brick_wall",
+                    no_ceiling=True,
                     # floor_tex='asphalt'
                 )
                 row.append(room)
