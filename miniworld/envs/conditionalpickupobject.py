@@ -322,4 +322,36 @@ class MazeConditionalPickUpObjectFast(ConditionalPickUpObjectFast):
             'meshent',
         ]
         """
-         
+
+class MazeConditionalPickUpObjectFast2x2(ConditionalPickUpObjectFast):
+    def __init__(
+        self, 
+        num_rows=4,
+        num_cols=4,
+        room_size=2, 
+        num_objs=10, 
+        cam_pitch=-25, 
+        **kwargs,
+    ):
+        ConditionalPickUpObjectFast.__init__(
+            self,
+            num_rows=num_rows,
+            num_cols=num_cols,
+            room_size=room_size, 
+            num_objs=num_objs,
+            cam_pitch=cam_pitch,
+            world_type='maze',
+            **kwargs,
+        )
+        
+        # Enable going through objects in order to not impair exploration.
+        self.collision_entity_types = []
+        """
+        [
+            'ball',
+            'box',
+            'key',
+            'meshent',
+        ]
+        """
+          

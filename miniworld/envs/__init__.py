@@ -7,6 +7,7 @@ from miniworld.envs.conditionalpickupobject import (
     ConditionalPickUpObject, 
     ConditionalPickUpObjectFast,
     MazeConditionalPickUpObjectFast,
+    MazeConditionalPickUpObjectFast2x2,
 )
 from miniworld.envs.fourrooms import FourRooms
 from miniworld.envs.hallway import Hallway
