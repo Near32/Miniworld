@@ -1327,7 +1327,7 @@ class MiniWorldEnv(gym.Env):
             self.window.close()
         return
 
-    def render(self):
+    def render(self, **kwargs):
         """
         Render the environment for human viewing
         """
