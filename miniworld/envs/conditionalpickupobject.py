@@ -291,6 +291,43 @@ class ConditionalPickUpObjectFast(ConditionalPickUpObject):
             **kwargs,
         )
 
+class ConditionalPickUpObjectFast2x2(ConditionalPickUpObject):
+    def __init__(
+        self, 
+        num_rows=4,
+        num_cols=4,
+        room_size=12, 
+        num_objs=5, 
+        cam_pitch=-25, 
+        params=default_params,
+        domain_rand=False,
+        collision=True,
+        **kwargs,
+    ):
+        ConditionalPickUpObject.__init__(
+            self,
+            num_rows=num_rows,
+            num_cols=num_cols,
+            room_size=room_size, 
+            num_objs=num_objs,
+            cam_pitch=cam_pitch,
+            params=params,
+            domain_rand=domain_rand,
+            **kwargs,
+        )
+	
+        # Enable going through objects in order to not impair exploration.
+        if not collision: 
+            self.collision_entity_types = []
+        else:
+            self.collision_entity_types = [
+                'ball',
+                'box',
+                'key',
+                'meshent',
+            ]
+
+ 
 class MazeConditionalPickUpObjectFast(ConditionalPickUpObjectFast):
     def __init__(
         self, 

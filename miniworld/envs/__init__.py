@@ -6,6 +6,7 @@ from miniworld.envs.collecthealth import CollectHealth
 from miniworld.envs.conditionalpickupobject import (
     ConditionalPickUpObject, 
     ConditionalPickUpObjectFast,
+    ConditionalPickUpObjectFast2x2,
     MazeConditionalPickUpObjectFast,
     MazeConditionalPickUpObjectFast2x2,
 )
