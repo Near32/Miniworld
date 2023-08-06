@@ -56,6 +56,109 @@ class WallEntity(object):
         self.s_p1 = wall_seg[1]
 
 
+class SymbolicImageEntityVisibilityOracleWrapper(gym.Wrapper):
+    """
+    Adds to the info dictionnary an entry `'symbolic_image'`,
+    whose value is a (7x7x3) matrix of entities currently visible on screen, 
+    following the OBJECT/COLOR_TO_IDX dictionnary from MiniGrid.
+    The set of entity types to consider and the amount of visibility
+    for the entity to qualify are parameterized by the following:
+        - :param relevant_entity_types: List[Str] where each string is
+        an element that must be found into the name of the type of 
+        entities to consider.
+    """
+
+    def __init__(
+        self, 
+        env, 
+        relevant_entity_types=['Box','Key','Ball'], 
+        as_obs=False, 
+    ):
+        assert isinstance(relevant_entity_types, list) and len(relevant_entity_types)
+        super().__init__(env)
+        self.relevant_entity_types = [w.lower() for w in relevant_entity_types]
+        self.as_obs = as_obs
+        
+        n_objects = getattr(env, 'n_object', None)
+        if n_objects is None:
+            n_objects = getattr(env, 'num_objs', None)
+        if n_objects is None:   
+            n_objects = 5
+
+        self.observation_space = copy.deepcopy(env.observation_space)
+        if self.as_obs:
+            if not isinstance(self.observation_space, gym.spaces.Dict):
+                obs_space = gym.spaces.Dict({
+                    "image": self.observation_space,
+                })
+                self.observation_space = obs_space
+
+            self.observation_space.spaces["symbolic_image"] = gym.spaces.Box(
+                low=0,
+                high=10,
+                shape=(7,7,3),
+                dtype="uint8",
+            )
+        
+    def get_symbolic_image(self):
+        OBJECT_TO_IDX = {
+            "unseen": 0,
+            "empty": 1,
+            "wall": 2,
+            "floor": 3,
+            "door": 4,
+            "key": 5,
+            "ball": 6,
+            "box": 7,
+            "goal": 8,
+            "lava": 9,
+            "agent": 10,
+        }
+
+        COLOR_TO_IDX = {"red": 0, "green": 1, "blue": 2, "purple": 3, "yellow": 4, "grey": 5}
+
+        visible_ents = self.get_visible_ents()
+        visible_objects = [
+            [getattr(ent,'color', ''), type(ent).__name__.lower()] 
+            for ent in visible_ents
+        ]
+        # filtering :
+        visible_objects = [t for t in visible_objects if t[1] in self.relevant_entity_types]
+
+        symbolic_image = np.zeros((7,7,3))
+        idx = 0
+        for color,shape in visible_objects:
+            i = idx // 7
+            j = idx % 7
+            symbolic_image[i,j,0] = OBJECT_TO_IDX[shape]
+            symbolic_image[i,j,1] = COLOR_TO_IDX[color]
+            idx += 1
+
+        return symbolic_image
+
+    def reset(self, **kwargs):
+        obs, info = self.env.reset(**kwargs)
+        
+        symbolic_image = self.get_symbolic_image()
+        if self.as_obs:
+            obs['symbolic_image'] = symbolic_image
+        else:
+            info['symbolic_image'] = symbolic_image
+
+        return obs, info
+
+    def step(self, action, **kwargs):
+        next_obs, reward, termination, truncation, info = self.env.step(action, **kwargs)
+        
+        symbolic_image = self.get_symbolic_image()
+        if self.as_obs:
+            next_obs['symbolic_image'] = symbolic_image
+        else:
+            info['symbolic_image'] = symbolic_image
+
+        return next_obs, reward, termination, truncation, info
+
+
 class EntityVisibilityOracleWrapper(gym.Wrapper):
     """
     Adds to the info dictionnary an entry `'visible_entities'`,
