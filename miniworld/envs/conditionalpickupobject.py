@@ -263,9 +263,9 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
 
 
 # Parameters for larger movement steps, fast stepping
-default_params = DEFAULT_PARAMS.no_random()
-default_params.set("forward_step", 0.7)
-default_params.set("turn_step", 45)
+fast_params = DEFAULT_PARAMS.no_random()
+fast_params.set("forward_step", 0.7)
+fast_params.set("turn_step", 15)
 
 class ConditionalPickUpObjectFast(ConditionalPickUpObject):
     def __init__(
@@ -275,7 +275,7 @@ class ConditionalPickUpObjectFast(ConditionalPickUpObject):
         room_size=12, 
         num_objs=5, 
         cam_pitch=-30, 
-        params=default_params,
+        params=fast_params,
         domain_rand=False,
         **kwargs,
     ):
@@ -299,7 +299,7 @@ class ConditionalPickUpObjectFast2x2(ConditionalPickUpObject):
         room_size=12, 
         num_objs=5, 
         cam_pitch=-25, 
-        params=default_params,
+        params=fast_params,
         domain_rand=False,
         collision=True,
         **kwargs,
@@ -366,6 +366,38 @@ class MazeConditionalPickUpObjectFast2x2(ConditionalPickUpObjectFast):
         num_rows=4,
         num_cols=4,
         room_size=2, 
+        num_objs=10, 
+        cam_pitch=-25, 
+        **kwargs,
+    ):
+        ConditionalPickUpObjectFast.__init__(
+            self,
+            num_rows=num_rows,
+            num_cols=num_cols,
+            room_size=room_size, 
+            num_objs=num_objs,
+            cam_pitch=cam_pitch,
+            world_type='maze',
+            **kwargs,
+        )
+        
+        # Enable going through objects in order to not impair exploration.
+        self.collision_entity_types = []
+        """
+        [
+            'ball',
+            'box',
+            'key',
+            'meshent',
+        ]
+        """
+
+class MazeConditionalPickUpObjectFast3x3(ConditionalPickUpObjectFast):
+    def __init__(
+        self, 
+        num_rows=4,
+        num_cols=4,
+        room_size=3, 
         num_objs=10, 
         cam_pitch=-25, 
         **kwargs,
