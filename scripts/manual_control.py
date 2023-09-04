@@ -40,7 +40,7 @@ env = gym.make(
     args.env_name, 
     view=view_mode, 
     render_mode="human",
-    #num_objs=10,
+    num_objs=15,
     #room_size=2,
 )
 

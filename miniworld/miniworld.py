@@ -902,7 +902,7 @@ class MiniWorldEnv(gym.Env):
                 continue
 
             # Make sure the position doesn't intersect with any walls
-            if self.intersect(ent, pos, ent.radius):
+            if self.intersect(ent, pos, ent.radius, placement_test=True):
                 continue
 
             # Pick a direction
@@ -934,7 +934,7 @@ class MiniWorldEnv(gym.Env):
             max_z=max_z,
         )
 
-    def intersect(self, ent, pos, radius, pickup_test=False):
+    def intersect(self, ent, pos, radius, pickup_test=False, placement_test=False):
         """
         Check if an entity intersects with the world
         """
@@ -952,7 +952,8 @@ class MiniWorldEnv(gym.Env):
             # Entities can't intersect with themselves
             if ent2 is ent:
                 continue
-            if not pickup_test \
+            if not placement_test \
+            and not pickup_test \
             and type(ent2).__name__.lower() not in self.collision_entity_types:
                 continue
 
