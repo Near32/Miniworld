@@ -159,6 +159,13 @@ class SymbolicImageEntityVisibilityOracleWrapper(gym.Wrapper):
         return next_obs, reward, termination, truncation, info
 
 
+def compute_distance(x,y):
+    assert len(x) == len(y)
+    dist = 0
+    for idx in range(len(x)):
+        dist += x[idx]*y[idx]
+    return np.sqrt(dist)
+
 class EntityVisibilityOracleWrapper(gym.Wrapper):
     """
     Adds to the info dictionnary an entry `'visible_entities'`,
@@ -524,8 +531,25 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
     
     def get_visible_entities(self):
         # Filtering for entities only :
-        visible_objects = self.get_visible_ents()
-        visible_objects = [f"{getattr(ent, 'color', '')} {type(ent).__name__.lower()}" for ent in visible_objects]
+        visible_ents = self.get_visible_ents()
+         
+        # Sorting entities by proximity to agent:
+        if len(visible_ents) >= 2:
+            ent_dist_list = []
+            for ent in visible_ents:
+                dist2agent = compute_distance(
+                    x=ent.pos,
+                    y=self.unwrapped.agent.pos,
+                )
+                ent_dist_list.append((ent, dist2agent))
+            visible_ents = [ent 
+                for ent,_ in sorted(
+                    ent_dist_list,
+                    key=lambda pair: pair[1],
+                )
+            ]
+        
+        visible_objects = [f"{getattr(ent, 'color', '')} {type(ent).__name__.lower()}" for ent in visible_ents]
         
         #visible_objects = ', '.join(visible_objects)
         visible_objects = ' '.join(visible_objects)
