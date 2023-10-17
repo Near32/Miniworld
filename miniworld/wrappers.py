@@ -570,8 +570,8 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         }
 
         COLOR_TO_IDX = {"red": 0, "green": 1, "blue": 2, "purple": 3, "yellow": 4, "grey": 5}
-        shapes = OBJECTS_TO_IDX.keys()
-        colors = COLOR_TO_IDX.keys()
+        shapes = list(OBJECT_TO_IDX.keys())
+        colors = list(COLOR_TO_IDX.keys())
 
         if 'none' in self.language_specs:
             allowed_vocabulary = shapes+colors
