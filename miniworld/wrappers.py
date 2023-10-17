@@ -196,6 +196,9 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         qualifying_area_ratio=0.15, 
         qualifying_screen_ratio=0.025, 
         as_obs=False, 
+        language_specs='NONE',
+        include_depth=False,
+        include_depth_precision=-1,
         with_top_view=False,
         verbose=False,
     ):
@@ -207,6 +210,9 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         self.qualifying_area_ratio = qualifying_area_ratio
         self.qualifying_screen_ratio = qualifying_screen_ratio
         self.as_obs = as_obs
+        self.language_specs = language_specs.lower()
+        self.include_depth = False # TODO
+        self.include_depth_precision = include_depth_precision
         self.with_top_view = with_top_view
         self.verbose = verbose
         
@@ -549,7 +555,45 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
                 )
             ]
         
-        visible_objects = [f"{getattr(ent, 'color', '')} {type(ent).__name__.lower()}" for ent in visible_ents]
+        OBJECT_TO_IDX = {
+            "unseen": 0,
+            "empty": 1,
+            "wall": 2,
+            "floor": 3,
+            "door": 4,
+            "key": 5,
+            "ball": 6,
+            "box": 7,
+            "goal": 8,
+            "lava": 9,
+            "agent": 10,
+        }
+
+        COLOR_TO_IDX = {"red": 0, "green": 1, "blue": 2, "purple": 3, "yellow": 4, "grey": 5}
+        shapes = OBJECTS_TO_IDX.keys()
+        colors = COLOR_TO_IDX.keys()
+
+        if 'none' in self.language_specs:
+            allowed_vocabulary = shapes+colors
+        elif 'color' in self.language_specs:
+            allowed_vocabulary = colors
+        elif 'shape' in self.language_specs:
+            allowed_vocabulary = shapes
+        elif self.language_specs.lower() in colors+shapes:
+            allowed_vocabulary = self.language_specs
+        else:
+            raise NotImplementedError
+
+        visible_colors = [f"{getattr(ent, 'color', '')}" for ent in visible_ents]
+        visible_shapes = [f"{type(ent).__name__.lower()}" for ent in visible_ents]
+        visible_objects = []
+        for color, shape in zip(visible_colors, visible_shapes):
+            annot = ""
+            if color in allowed_vocabulary: annot += color
+            if shape in allowed_vocabulary:
+                if len(annot):  annot += " "
+                annot += shape
+            visible_objects.append(annot)    
         
         #visible_objects = ', '.join(visible_objects)
         visible_objects = ' '.join(visible_objects)
