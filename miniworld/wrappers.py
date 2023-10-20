@@ -163,7 +163,7 @@ def compute_distance(x,y):
     assert len(x) == len(y)
     dist = 0
     for idx in range(len(x)):
-        dist += x[idx]*y[idx]
+        dist += np.square(x[idx]-y[idx])
     return np.sqrt(dist)
 
 class EntityVisibilityOracleWrapper(gym.Wrapper):
