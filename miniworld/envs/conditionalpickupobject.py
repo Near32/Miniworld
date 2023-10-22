@@ -430,9 +430,9 @@ class MazeConditionalPickUpObjectFast3x3(ConditionalPickUpObjectFast):
 class MazeConditionalPickUpFurthestObject(ConditionalPickUpObjectFast):
     def __init__(
         self, 
-        num_rows=5,
-        num_cols=5,
-        room_size=5, 
+        num_rows=6,
+        num_cols=6,
+        room_size=3, 
         num_objs=10, 
         cam_pitch=-25, 
         **kwargs,
