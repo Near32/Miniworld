@@ -19,6 +19,7 @@ import miniworld
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--env-name", default=miniworld.envs.env_ids[0])
+parser.add_argument("--seed", type=int, default=0)
 parser.add_argument(
     "--domain-rand", action="store_true", help="enable domain randomization"
 )
@@ -41,7 +42,7 @@ env = gym.make(
     view=view_mode, 
     render_mode="human",
     num_objs=15,
-    #room_size=2,
+    #room_size=3,
 )
 
 if args.no_time_limit:
@@ -58,13 +59,14 @@ print("============")
 print("move: arrow keys\npickup: P\ndrop: D\ndone: ENTER\nquit: ESC")
 print("============")
 
-env.reset()
+env.reset(seed=args.seed)
 
 # Create the display window
 env.render()
 
 
 def step(action):
+    global args 
     print(
         "step {}/{}: {}".format(
             env.step_count + 1, env.max_episode_steps, env.actions(action).name
@@ -78,7 +80,7 @@ def step(action):
 
     if termination or truncation:
         print("done!")
-        env.reset()
+        env.reset(seed=args.seed)
     
     if "visible_entities" in info:
         print(f"Visible entities: {info['visible_entities']}")

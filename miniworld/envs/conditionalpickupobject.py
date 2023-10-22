@@ -1,6 +1,8 @@
 import copy
 from typing import Optional, Tuple
 
+import numpy as np
+
 from gymnasium import spaces, utils
 from gymnasium.core import ObsType
 
@@ -423,4 +425,101 @@ class MazeConditionalPickUpObjectFast3x3(ConditionalPickUpObjectFast):
             'meshent',
         ]
         """
-          
+
+
+class MazeConditionalPickUpFurthestObject(ConditionalPickUpObjectFast):
+    def __init__(
+        self, 
+        num_rows=5,
+        num_cols=5,
+        room_size=5, 
+        num_objs=10, 
+        cam_pitch=-25, 
+        **kwargs,
+    ):
+        ConditionalPickUpObjectFast.__init__(
+            self,
+            num_rows=num_rows,
+            num_cols=num_cols,
+            room_size=room_size, 
+            num_objs=num_objs,
+            cam_pitch=cam_pitch,
+            world_type='maze',
+            **kwargs,
+        )
+        
+        # Enable going through objects in order to not impair exploration.
+        self.collision_entity_types = []
+        """
+        [
+            'ball',
+            'box',
+            'key',
+            'meshent',
+        ]
+        """
+    def compute_distance(self, entity):
+        dist = 0
+        for x,y in zip(self.agent.pos, entity[0].pos):
+            dist += np.square(x-y)
+        dist = np.sqrt(dist)
+        return dist
+
+    def _gen_world(self):
+        '''
+        The Mission is to pick up the furthest object, instead of a randomly chosen one.
+        '''
+        if self.world_type == 'maze':
+            self._gen_maze()
+        else:
+            self.add_rect_room(
+                min_x=0,
+                max_x=self.room_size,
+                min_z=0,
+                max_z=self.room_size,
+                wall_tex="brick_wall",
+                floor_tex="asphalt",
+                no_ceiling=True,
+            )
+
+        obj_types = [Ball, Box, Key]
+        colorlist = list(COLOR_NAMES)
+
+        obj_list = []
+        ent_list = []
+        while len(obj_list) < self.num_objs:
+            obj_type = obj_types[self.np_random.choice(len(obj_types))]
+            color = colorlist[self.np_random.choice(len(colorlist))]
+
+            obj_descr = [obj_type, color]
+            if obj_descr in obj_list:
+                continue
+            
+            obj_list.append(obj_descr)
+
+
+            if obj_type == Box:
+                self.place_entity(Box(color=color, size=0.9))
+            if obj_type == Ball:
+                self.place_entity(Ball(color=color, size=0.9))
+            if obj_type == Key:
+                self.place_entity(Key(color=color))
+            
+            ent_descr = [self.entities[-1]] + obj_descr
+            ent_list.append(ent_descr)
+
+        self.place_agent()
+        self.agent.cam_pitch = self.cam_pitch
+
+        # Create mission:
+        sorted_ent_list = sorted(
+            ent_list,
+            key=self.compute_distance,
+        )
+        obj = sorted_ent_list[-1][1:]
+
+        obj_color = obj[1]
+        obj_type = obj[0].__name__.lower()
+        self.mission = f"pick up the {obj_color} {obj_type}"
+
+      
