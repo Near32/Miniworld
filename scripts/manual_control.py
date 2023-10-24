@@ -30,6 +30,9 @@ parser.add_argument(
     "--entity_visibility_oracle", action="store_true", help="enable entity visibility oracle"
 )
 parser.add_argument(
+    "--include_discrete_depth", action="store_true", help="adds discrete depth to entity visibility oracle"
+)
+parser.add_argument(
     "--top_view",
     action="store_true",
     help="show the top view instead of the agent view",
@@ -51,7 +54,12 @@ if args.domain_rand:
     env.domain_rand = True
 if args.entity_visibility_oracle:
     from miniworld.wrappers import EntityVisibilityOracleWrapper
-    env = EntityVisibilityOracleWrapper(env, verbose=True, with_top_view=True)
+    env = EntityVisibilityOracleWrapper(
+        env, 
+        verbose=True, 
+        with_top_view=True,
+        include_discrete_depth=args.include_discrete_depth,
+    )
 
 print("============")
 print("Instructions")

@@ -199,6 +199,7 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         language_specs='NONE',
         far_threshold=3.0,
         near_threshold=1.5,
+        include_discrete_depth=False,
         include_depth=False,
         include_depth_precision=-1,
         with_top_view=False,
@@ -215,6 +216,7 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         self.language_specs = language_specs.lower()
         self.far_threshold = far_threshold
         self.near_threshold = near_threshold
+        self.include_discrete_depth = include_discrete_depth
         self.include_depth = False # TODO
         self.include_depth_precision = include_depth_precision
         self.with_top_view = with_top_view
@@ -577,16 +579,19 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         distances = ["far","medium","near"]
 
         if 'none' in self.language_specs:
-            allowed_vocabulary = shapes+colors+distances
+            allowed_vocabulary = shapes+colors
         elif 'color' in self.language_specs:
-            allowed_vocabulary = colors+distances
+            allowed_vocabulary = colors
         elif 'shape' in self.language_specs:
-            allowed_vocabulary = shapes+distances
+            allowed_vocabulary = shapes
         elif self.language_specs.lower() in colors+shapes+distances:
             allowed_vocabulary = self.language_specs
         else:
             raise NotImplementedError
 
+        if self.include_discrete_depth:
+            allowed_vocabulary += distances
+        
         visible_colors = [f"{getattr(ent, 'color', '')}" for ent in visible_ents]
         visible_shapes = [f"{type(ent).__name__.lower()}" for ent in visible_ents]
         ent_distances = []
