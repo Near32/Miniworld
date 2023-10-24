@@ -197,6 +197,8 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         qualifying_screen_ratio=0.025, 
         as_obs=False, 
         language_specs='NONE',
+        far_threshold=3.0,
+        near_threshold=1.5,
         include_depth=False,
         include_depth_precision=-1,
         with_top_view=False,
@@ -211,6 +213,8 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         self.qualifying_screen_ratio = qualifying_screen_ratio
         self.as_obs = as_obs
         self.language_specs = language_specs.lower()
+        self.far_threshold = far_threshold
+        self.near_threshold = near_threshold
         self.include_depth = False # TODO
         self.include_depth_precision = include_depth_precision
         self.with_top_view = with_top_view
@@ -242,7 +246,7 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
             self.observation_space.spaces["top_view"] = copy.deepcopy(self.observation_space.spaces["image"])
             self.observation_space.spaces["agent_pos_in_top_view"] = gym.spaces.Box(
                 low=-math.inf, 
-                high=-math.inf, 
+                high=math.inf, 
                 shape=(3, 4), 
                 dtype=np.float32,
             )
@@ -540,21 +544,19 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         visible_ents = self.get_visible_ents()
          
         # Sorting entities by proximity to agent:
-        if len(visible_ents) >= 2:
-            ent_dist_list = []
-            for ent in visible_ents:
-                dist2agent = compute_distance(
-                    x=ent.pos,
-                    y=self.unwrapped.agent.pos,
-                )
-                ent_dist_list.append((ent, dist2agent))
-            visible_ents = [ent 
-                for ent,_ in sorted(
-                    ent_dist_list,
-                    key=lambda pair: pair[1],
-                )
-            ]
+        ent_dist_list = []
+        for ent in visible_ents:
+            dist2agent = compute_distance(
+                x=ent.pos,
+                y=self.unwrapped.agent.pos,
+            )
+            ent_dist_list.append((ent, dist2agent))
+        sorted_ents = sorted(ent_dist_list, key=lambda pair:pair[1])
+        visible_ents = [ent 
+            for ent,_ in sorted_ents
+        ]
         
+         
         OBJECT_TO_IDX = {
             "unseen": 0,
             "empty": 1,
@@ -572,30 +574,41 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         COLOR_TO_IDX = {"red": 0, "green": 1, "blue": 2, "purple": 3, "yellow": 4, "grey": 5}
         shapes = list(OBJECT_TO_IDX.keys())
         colors = list(COLOR_TO_IDX.keys())
+        distances = ["far","medium","near"]
 
         if 'none' in self.language_specs:
-            allowed_vocabulary = shapes+colors
+            allowed_vocabulary = shapes+colors+distances
         elif 'color' in self.language_specs:
-            allowed_vocabulary = colors
+            allowed_vocabulary = colors+distances
         elif 'shape' in self.language_specs:
-            allowed_vocabulary = shapes
-        elif self.language_specs.lower() in colors+shapes:
+            allowed_vocabulary = shapes+distances
+        elif self.language_specs.lower() in colors+shapes+distances:
             allowed_vocabulary = self.language_specs
         else:
             raise NotImplementedError
 
         visible_colors = [f"{getattr(ent, 'color', '')}" for ent in visible_ents]
         visible_shapes = [f"{type(ent).__name__.lower()}" for ent in visible_ents]
+        ent_distances = []
+        for (ent, dist), shape, color in zip(sorted_ents, visible_shapes, visible_colors):
+            #descr = f"{color} {shape} {dist:.1f}"
+            #print(descr)
+            ldist = "far"
+            if dist <= self.far_threshold: ldist = "medium"
+            if dist <= self.near_threshold: ldist = "near"
+            ent_distances.append(ldist)
         visible_objects = []
-        for color, shape in zip(visible_colors, visible_shapes):
+        for dist, color, shape in zip(ent_distances, visible_colors, visible_shapes):
             annot = ""
-            if color in allowed_vocabulary: annot += color
+            if dist in allowed_vocabulary: annot += dist
+            if color in allowed_vocabulary: 
+                if len(annot):  annot += " "
+                annot += color
             if shape in allowed_vocabulary:
                 if len(annot):  annot += " "
                 annot += shape
             visible_objects.append(annot)    
         
-        #visible_objects = ', '.join(visible_objects)
         visible_objects = ' '.join(visible_objects)
 
         if visible_objects == '':
