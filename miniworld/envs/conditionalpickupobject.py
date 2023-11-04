@@ -67,6 +67,7 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
         num_objs=10, 
         cam_pitch=-30, 
         world_type='room',
+        use_penalty=False,
         **kwargs,
     ):
         assert room_size >= 2
@@ -77,6 +78,7 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
         self.gap_size = 0.25
         self.num_objs = num_objs
         self.cam_pitch = cam_pitch
+        self.use_penalty = use_penalty
 
         MiniWorldEnv.__init__(
             self, 
@@ -90,6 +92,7 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
             num_objs, 
             cam_pitch, 
             world_type,
+            use_penalty,
             **kwargs,
         )
 
@@ -250,8 +253,10 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
             obj_color = getattr(self.agent.carrying, "color", None)
             if obj_color in self.mission and obj_type in self.mission:
                 reward = 1
-            else:
+            elif self.use_penalty:
                 reward = -1
+            else:
+                reward = 0
 
             if reward > 0:
                 termination = True
@@ -348,6 +353,7 @@ class MazeConditionalPickUpObjectFast(ConditionalPickUpObjectFast):
             num_objs=num_objs,
             cam_pitch=cam_pitch,
             world_type='maze',
+            use_penalty=False,
             **kwargs,
         )
         
@@ -380,6 +386,7 @@ class MazeConditionalPickUpObjectFast2x2(ConditionalPickUpObjectFast):
             num_objs=num_objs,
             cam_pitch=cam_pitch,
             world_type='maze',
+            use_penalty=False,
             **kwargs,
         )
         
@@ -412,6 +419,7 @@ class MazeConditionalPickUpObjectFast3x3(ConditionalPickUpObjectFast):
             num_objs=num_objs,
             cam_pitch=cam_pitch,
             world_type='maze',
+            use_penalty=False,
             **kwargs,
         )
         
@@ -445,6 +453,7 @@ class MazeConditionalPickUpFurthestObject(ConditionalPickUpObjectFast):
             num_objs=num_objs,
             cam_pitch=cam_pitch,
             world_type='maze',
+            use_penalty=False,
             **kwargs,
         )
         
