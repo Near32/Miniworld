@@ -284,6 +284,7 @@ class ConditionalPickUpObjectFast(ConditionalPickUpObject):
         cam_pitch=-30, 
         params=fast_params,
         domain_rand=False,
+        collision=True,
         **kwargs,
     ):
         ConditionalPickUpObject.__init__(
@@ -297,6 +298,18 @@ class ConditionalPickUpObjectFast(ConditionalPickUpObject):
             domain_rand=domain_rand,
             **kwargs,
         )
+        
+        # Enable going through objects in order to not impair exploration.
+        if not collision: 
+            self.collision_entity_types = []
+        else:
+            self.collision_entity_types = [
+                'ball',
+                'box',
+                'key',
+                'meshent',
+            ]
+
 
 class ConditionalPickUpObjectFast2x2(ConditionalPickUpObject):
     def __init__(

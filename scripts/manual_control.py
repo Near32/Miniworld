@@ -16,6 +16,19 @@ import miniworld
 
 # import sys
 
+def str2bool(arg):
+    if arg is None:
+        return False
+    if isinstance(arg, bool):
+        return arg
+    if isinstance(arg, str):
+        if 'true' in arg.lower():
+            return True
+        else:
+            return False
+    else:
+        raise NotImplementedError 
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--env-name", default=miniworld.envs.env_ids[0])
@@ -29,6 +42,8 @@ parser.add_argument(
 parser.add_argument(
     "--entity_visibility_oracle", action="store_true", help="enable entity visibility oracle"
 )
+parser.add_argument("--too_far_threshold", type=float, default=-1)
+parser.add_argument("--collision", type=str2bool, default=True)
 parser.add_argument(
     "--include_discrete_depth", action="store_true", help="adds discrete depth to entity visibility oracle"
 )
@@ -46,6 +61,7 @@ env = gym.make(
     render_mode="human",
     num_objs=15,
     #room_size=3,
+    collision=args.collision,
 )
 
 if args.no_time_limit:
@@ -59,6 +75,7 @@ if args.entity_visibility_oracle:
         verbose=True, 
         with_top_view=True,
         include_discrete_depth=args.include_discrete_depth,
+        too_far_threshold=args.too_far_threshold,
     )
 
 print("============")

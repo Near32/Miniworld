@@ -616,8 +616,10 @@ class MiniWorldEnv(gym.Env):
         Compute the position at which to place an object being carried
         """
 
-        dist = self.agent.radius + ent.radius + self.max_forward_step
-        pos = agent_pos + self.agent.dir_vec * 1.05 * dist
+        #dist = self.agent.radius + ent.radius + self.max_forward_step
+        dist = self.carrying_entity_init_dist
+        #pos = agent_pos + self.agent.dir_vec * 1.05 * dist
+        pos = agent_pos + self.agent.dir_vec*dist 
 
         # Adjust the Y-position so the object is visible while being carried
         y_pos = max(self.agent.cam_height - ent.height - 0.3, 0)
@@ -708,6 +710,11 @@ class MiniWorldEnv(gym.Env):
                 if isinstance(ent, Entity):
                     if not ent.is_static:
                         self.agent.carrying = ent
+                        px, _, pz = self.agent.pos
+                        agent_pos = np.array([px, 0, pz])
+                        px, _, pz = ent.pos
+                        ent_pos = np.array([px, 0, pz])
+                        self.carrying_entity_init_dist = np.linalg.norm(ent_pos - agent_pos)
 
         # Drop an object being carried
         elif action == self.actions.drop:

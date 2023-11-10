@@ -197,6 +197,7 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         qualifying_screen_ratio=0.025, 
         as_obs=False, 
         language_specs='NONE',
+        too_far_threshold=-1,
         far_threshold=3.0,
         near_threshold=1.5,
         include_discrete_depth=False,
@@ -214,6 +215,7 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
         self.qualifying_screen_ratio = qualifying_screen_ratio
         self.as_obs = as_obs
         self.language_specs = language_specs.lower()
+        self.too_far_threshold = too_far_threshold
         self.far_threshold = far_threshold
         self.near_threshold = near_threshold
         self.include_discrete_depth = include_discrete_depth
@@ -599,12 +601,15 @@ class EntityVisibilityOracleWrapper(gym.Wrapper):
             #descr = f"{color} {shape} {dist:.1f}"
             #print(descr)
             ldist = "far"
+            if self.too_far_threshold > 0\
+            and dist > self.too_far_threshold:  ldist = "too far"
             if dist <= self.far_threshold: ldist = "medium"
             if dist <= self.near_threshold: ldist = "near"
             ent_distances.append(ldist)
         visible_objects = []
         for dist, color, shape in zip(ent_distances, visible_colors, visible_shapes):
             annot = ""
+            if dist=="too far": continue
             if dist in allowed_vocabulary: annot += dist
             if color in allowed_vocabulary: 
                 if len(annot):  annot += " "
