@@ -59,8 +59,10 @@ env = gym.make(
     args.env_name, 
     view=view_mode, 
     render_mode="human",
-    num_objs=15,
-    #room_size=3,
+    num_objs=8,
+    room_size=3,
+    num_cols=3,
+    num_rows=3,
     collision=args.collision,
 )
 
