@@ -44,6 +44,10 @@ parser.add_argument(
 )
 parser.add_argument("--too_far_threshold", type=float, default=-1)
 parser.add_argument("--collision", type=str2bool, default=True)
+parser.add_argument("--num_objs", type=int, default=8)
+parser.add_argument("--room_size", type=int, default=3)
+parser.add_argument("--num_cols", type=int, default=3)
+parser.add_argument("--num_rows", type=int, default=3)
 parser.add_argument(
     "--include_discrete_depth", action="store_true", help="adds discrete depth to entity visibility oracle"
 )
@@ -59,10 +63,10 @@ env = gym.make(
     args.env_name, 
     view=view_mode, 
     render_mode="human",
-    num_objs=8,
-    room_size=3,
-    num_cols=3,
-    num_rows=3,
+    num_objs=args.num_objs,
+    room_size=args.room_size,
+    num_cols=args.num_cols,
+    num_rows=args.num_rows,
     collision=args.collision,
 )
 
