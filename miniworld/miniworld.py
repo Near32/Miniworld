@@ -37,6 +37,7 @@ from pyglet.gl import (
     glBegin,
     glBeginQuery,
     glBindFramebuffer,
+    glGenLists,
     glCallList,
     glClear,
     glClearColor,
@@ -603,7 +604,7 @@ class MiniWorldEnv(gym.Env):
             self._gen_static_data()
 
         # Pre-compile static parts of the environment into a display list
-        self._render_static()
+        self._render_static(frame_buffer=self.obs_fb)
 
         # Generate the first camera image
         obs = self.render_obs()
@@ -1027,7 +1028,7 @@ class MiniWorldEnv(gym.Env):
 
         return 1.0 - 0.2 * (self.step_count / self.max_episode_steps)
 
-    def _render_static(self):
+    def _render_static(self, frame_buffer=None):
         """
         Render the static elements of the scene into a display list.
         Called once at the beginning of each episode.
@@ -1035,8 +1036,20 @@ class MiniWorldEnv(gym.Env):
 
         # TODO: manage this automatically
         # glIsList
-        glDeleteLists(1, 1)
-        glNewList(1, GL_COMPILE)
+        #glDeleteLists(1, 1)
+        # In case of multiple environments in parallel,
+        # it is best to make sure that the current list is
+        # specific to the current environment, in order to avoid
+        # rendering other geometry in the current environment:
+        if hasattr(self, 'static_call_listid'):
+            glDeleteLists(self.static_call_listid, 1)
+        self.static_call_listid = glGenLists(1)
+        
+        if frame_buffer is None:
+            frame_buffer = self.obs_fb
+        
+        frame_buffer.bind()
+        glNewList(self.static_call_listid, GL_COMPILE)
 
         # Light position
         glLightfv(GL_LIGHT0, GL_POSITION, (GLfloat * 4)(*self.light_pos + [1]))
@@ -1079,7 +1092,9 @@ class MiniWorldEnv(gym.Env):
         """
 
         # Call the display list for the static parts of the environment
-        glCallList(1)
+        assert hasattr(self, 'static_call_listid')
+        frame_buffer.bind()
+        glCallList(self.static_call_listid)
 
         # TODO: keep the non-static entities in a different list for efficiency?
         # Render the non-static entities
