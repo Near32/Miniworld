@@ -239,6 +239,7 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
         This also randomizes many environment parameters (domain randomization)
         """
         obs, info = super().reset(seed=seed)
+        info['success'] = False 
 
         output_d = {
             "image": obs,
@@ -250,12 +251,14 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
     def step(self, action):
         self.agent.cam_pitch = self.cam_pitch
         obs, reward, termination, truncation, info = super().step(action)
+        info['success'] = False
 
         if self.agent.carrying:
             obj_type = type(self.agent.carrying).__name__.lower()
             obj_color = getattr(self.agent.carrying, "color", None)
             if obj_color in self.mission and obj_type in self.mission:
                 reward = 1
+                info['success'] = True
             elif self.use_penalty:
                 reward = -1
             else:
