@@ -239,6 +239,8 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
         This also randomizes many environment parameters (domain randomization)
         """
         obs, info = super().reset(seed=seed)
+        self.successful = False
+        info['success'] = False 
 
         output_d = {
             "image": obs,
@@ -256,6 +258,7 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
             obj_color = getattr(self.agent.carrying, "color", None)
             if obj_color in self.mission and obj_type in self.mission:
                 reward = 1
+                self.successful = True
             elif self.use_penalty:
                 reward = -1
             else:
@@ -265,6 +268,7 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
             and reward > 0:
                 termination = True
 
+        info['success'] = self.successful
         output_d = {
             "image": obs,
             "mission": copy.deepcopy(self.mission),
