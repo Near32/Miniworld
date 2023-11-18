@@ -68,6 +68,7 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
         cam_pitch=-30, 
         world_type='room',
         use_penalty=False,
+        terminate_on_completion=True,
         **kwargs,
     ):
         assert room_size >= 2
@@ -79,6 +80,7 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
         self.num_objs = num_objs
         self.cam_pitch = cam_pitch
         self.use_penalty = use_penalty
+        self.terminate_on_completion = terminate_on_completion
 
         MiniWorldEnv.__init__(
             self, 
@@ -93,6 +95,7 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
             cam_pitch, 
             world_type,
             use_penalty,
+            terminate_on_completion,
             **kwargs,
         )
 
@@ -258,7 +261,8 @@ class ConditionalPickUpObject(MiniWorldEnv, utils.EzPickle):
             else:
                 reward = 0
 
-            if reward > 0:
+            if self.terminate_on_completion \
+            and reward > 0:
                 termination = True
 
         output_d = {
@@ -285,6 +289,7 @@ class ConditionalPickUpObjectFast(ConditionalPickUpObject):
         params=fast_params,
         domain_rand=False,
         collision=True,
+        terminate_on_completion=True,
         **kwargs,
     ):
         ConditionalPickUpObject.__init__(
@@ -296,6 +301,7 @@ class ConditionalPickUpObjectFast(ConditionalPickUpObject):
             cam_pitch=cam_pitch,
             params=params,
             domain_rand=domain_rand,
+            terminate_on_completion=terminate_on_completion,
             **kwargs,
         )
         
@@ -322,6 +328,7 @@ class ConditionalPickUpObjectFast2x2(ConditionalPickUpObject):
         params=fast_params,
         domain_rand=False,
         collision=True,
+        terminate_on_completion=True,
         **kwargs,
     ):
         ConditionalPickUpObject.__init__(
@@ -333,6 +340,7 @@ class ConditionalPickUpObjectFast2x2(ConditionalPickUpObject):
             cam_pitch=cam_pitch,
             params=params,
             domain_rand=domain_rand,
+            terminate_on_completion=terminate_on_completion,
             **kwargs,
         )
 	
@@ -356,6 +364,7 @@ class MazeConditionalPickUpObjectFast(ConditionalPickUpObjectFast):
         room_size=4, 
         num_objs=10, 
         cam_pitch=-25, 
+        terminate_on_completion=True,
         **kwargs,
     ):
         ConditionalPickUpObjectFast.__init__(
@@ -367,6 +376,7 @@ class MazeConditionalPickUpObjectFast(ConditionalPickUpObjectFast):
             cam_pitch=cam_pitch,
             world_type='maze',
             use_penalty=False,
+            terminate_on_completion=terminate_on_completion,
             **kwargs,
         )
         
@@ -389,6 +399,7 @@ class MazeConditionalPickUpObjectFast2x2(ConditionalPickUpObjectFast):
         room_size=2, 
         num_objs=10, 
         cam_pitch=-25, 
+        terminate_on_completion=True,
         **kwargs,
     ):
         ConditionalPickUpObjectFast.__init__(
@@ -400,6 +411,7 @@ class MazeConditionalPickUpObjectFast2x2(ConditionalPickUpObjectFast):
             cam_pitch=cam_pitch,
             world_type='maze',
             use_penalty=False,
+            terminate_on_completion=terminate_on_completion,
             **kwargs,
         )
         
@@ -422,6 +434,7 @@ class MazeConditionalPickUpObjectFast3x3(ConditionalPickUpObjectFast):
         room_size=3, 
         num_objs=10, 
         cam_pitch=-25, 
+        terminate_on_completion=True,
         **kwargs,
     ):
         ConditionalPickUpObjectFast.__init__(
@@ -433,6 +446,7 @@ class MazeConditionalPickUpObjectFast3x3(ConditionalPickUpObjectFast):
             cam_pitch=cam_pitch,
             world_type='maze',
             use_penalty=False,
+            terminate_on_completion=terminate_on_completion,
             **kwargs,
         )
         
@@ -456,6 +470,7 @@ class MazeConditionalPickUpFurthestObject(ConditionalPickUpObjectFast):
         room_size=3, 
         num_objs=10, 
         cam_pitch=-25, 
+        terminate_on_completion=True,
         **kwargs,
     ):
         ConditionalPickUpObjectFast.__init__(
@@ -467,6 +482,7 @@ class MazeConditionalPickUpFurthestObject(ConditionalPickUpObjectFast):
             cam_pitch=cam_pitch,
             world_type='maze',
             use_penalty=False,
+            terminate_on_completion=terminate_on_completion,
             **kwargs,
         )
         
