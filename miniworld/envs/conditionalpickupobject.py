@@ -1,6 +1,7 @@
 import copy
 from typing import Optional, Tuple
 
+import math
 import numpy as np
 
 from gymnasium import spaces, utils
@@ -550,7 +551,33 @@ class MazeConditionalPickUpFurthestObject(ConditionalPickUpObjectFast):
             ent_descr = [self.entities[-1]] + obj_descr
             ent_list.append(ent_descr)
 
-        self.place_agent()
+        #self.place_agent()
+        '''
+        self.place_agent(
+            min_x=0.0,
+            min_z=0.0,
+            max_x=self.room_size,
+            max_z=self.room_size,
+        )
+        '''
+        self.min_x = 0.0
+        self.min_z = 0.0
+        while True:
+            pos = self.np_random.uniform(
+                low=[self.min_x - self.agent.radius, 0, self.min_z - self.agent.radius],
+                high=[self.min_x+self.room_size + self.agent.radius, 0, self.min_z+self.room_size + self.agent.radius],
+            )
+            # Make sure the position doesn't intersect with any walls
+            if not(self.intersect(self.agent, pos, self.agent.radius, placement_test=True)):
+                break
+        
+        self.agent.pos = pos
+
+        # Pick a direction
+        self.agent.dir = self.np_random.uniform(-math.pi, math.pi)
+        
+        self.entities.append(self.agent)
+	      
         self.agent.cam_pitch = self.cam_pitch
 
         # Create mission:
