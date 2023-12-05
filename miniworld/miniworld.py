@@ -546,7 +546,7 @@ class MiniWorldEnv(gym.Env):
             'key',
             'meshent',
         ]
-
+        
         # Initialize the state
         self.reset()
 
@@ -684,7 +684,7 @@ class MiniWorldEnv(gym.Env):
         """
 
         self.step_count += 1
-
+        
         rand = self.np_random if self.domain_rand else None
         fwd_step = self.params.sample(rand, "forward_step")
         fwd_drift = self.params.sample(rand, "forward_drift")

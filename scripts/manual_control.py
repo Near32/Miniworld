@@ -45,6 +45,7 @@ parser.add_argument(
 parser.add_argument("--too_far_threshold", type=float, default=-1)
 parser.add_argument("--collision", type=str2bool, default=True)
 parser.add_argument("--terminate_on_completion", type=str2bool, default=True)
+parser.add_argument("--allow_carrying", type=str2bool, default=True)
 parser.add_argument("--num_objs", type=int, default=8)
 parser.add_argument("--room_size", type=int, default=3)
 parser.add_argument("--num_cols", type=int, default=3)
@@ -69,7 +70,8 @@ env = gym.make(
     num_cols=args.num_cols,
     num_rows=args.num_rows,
     collision=args.collision,
-    terminate_on_completion=args.terminate_on_completion
+    terminate_on_completion=args.terminate_on_completion,
+    allow_carrying=args.allow_carrying,
 )
 
 if args.no_time_limit:
